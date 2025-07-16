@@ -1,0 +1,14 @@
+[package]
+name = "dumbo_log"
+version = "0.1.0"
+edition = "2021"
+authors = ["zongying_cao <zongying_cao@163.com>"]
+description = "helper functions for web development"
+documentation = "https://docs.rs/dumbo_log"
+repository = "https://github.com/cao5zy/dumbo_log"
+license = "MIT"
+
+[dependencies]
+anyhow = "1.0.98"
+log = "0.4.27"
+log4rs = "1.3.0"
