@@ -1,4 +1,6 @@
+
 use anyhow::{anyhow, Result};
+use chrono::{NaiveDate, NaiveDateTime};
 use log::LevelFilter;
 use log4rs::{
     append::console::ConsoleAppender,
@@ -6,8 +8,19 @@ use log4rs::{
     config::{Appender, Config as LogConfig, Root},
     encode::pattern::PatternEncoder,
 };
+use num_traits::Num;
 use std::env;
+use std::fmt::Display;
 use std::path::Path;
+
+// 导出模块
+pub mod config;
+pub mod formatter;
+pub mod output;
+
+// 重新导出公共API
+pub use config::init_log_config;
+pub use output::{log_as_date, log_as_datetime, log_as_number, log_as_string, log_as_json};
 
 /// 初始化日志系统
 ///
@@ -33,9 +46,9 @@ pub fn init_log(log_path: &Path, prefix: Option<&str>) -> Result<()> {
 /// # 返回
 /// - `Result<()>`: 成功时返回`Ok(())`，失败时返回错误信息
 pub fn init_log_with_console(
-    log_path: &Path, 
-    prefix: Option<&str>, 
-    enable_console: bool
+    log_path: &Path,
+    prefix: Option<&str>,
+    enable_console: bool,
 ) -> Result<()> {
     let env_var = match prefix {
         Some(p) => format!("{}_DUMBO_LOG_LEVEL", p),
