@@ -245,12 +245,6 @@ mod tests {
     use tempfile::NamedTempFile;
     use serial_test::serial;
 
-    // todo: setup_test_config应该只被调用一次，否者会测试报错:
-    // thread 'output::tests::test_log_as_string_success' panicked at src/output.rs:387:43:
-    // called `Result::unwrap()` on an `Err` value: 日志配置已经初始化，不能重复初始化
-    //
-    //
-    //
     /// 初始化测试配置
     fn setup_test_config() -> NamedTempFile {
         let config_content = r#"{
