@@ -1,4 +1,3 @@
-
 use anyhow::Result;
 use chrono::{NaiveDate, NaiveDateTime};
 use log::info;
@@ -6,8 +5,10 @@ use num_traits::Num;
 use serde::Serialize;
 use std::fmt::Display;
 
-use crate::config::{get_collect_id, validate_id};
-use crate::formatter::{format_date, format_datetime, format_log, format_number, format_string, generate_timestamp};
+use crate::config::{get_collect_id, get_collect_id_length, get_id_length, validate_id};
+use crate::formatter::{
+    format_date, format_datetime, format_log, format_number, format_string, generate_timestamp,
+};
 
 /// 转义字符串中的换行符，确保日志数据在一行上
 ///
@@ -24,8 +25,7 @@ use crate::formatter::{format_date, format_datetime, format_log, format_number, 
 /// assert_eq!(output, "hello\\nworld");
 /// ```
 pub fn escape_newlines(data: &str) -> String {
-    data.replace('\n', "\\n")
-        .replace('\r', "\\r")
+    data.replace('\n', "\\n").replace('\r', "\\r")
 }
 
 /// 将可序列化的数据转换为 JSON 字符串（纯函数）
@@ -73,6 +73,8 @@ pub fn log_as_string(id: &str, data: &str) -> Result<()> {
 
     // 获取配置
     let collect_id = get_collect_id()?;
+    let collect_id_length = get_collect_id_length()?;
+    let id_length = get_id_length(id)?;
 
     // 生成时间戳
     let timestamp = generate_timestamp();
@@ -84,7 +86,14 @@ pub fn log_as_string(id: &str, data: &str) -> Result<()> {
     let log_data = format_string(&escaped_data);
 
     // 组合日志
-    let formatted_log = format_log(&collect_id, id, &timestamp, &log_data);
+    let formatted_log = format_log(
+        &collect_id,
+        collect_id_length,
+        id,
+        id_length,
+        &timestamp,
+        &log_data,
+    );
 
     // 输出日志
     info!("{}", formatted_log);
@@ -112,6 +121,8 @@ where
 
     // 获取配置
     let collect_id = get_collect_id()?;
+    let collect_id_length = get_collect_id_length()?;
+    let id_length = get_id_length(id)?;
 
     // 生成时间戳
     let timestamp = generate_timestamp();
@@ -120,7 +131,14 @@ where
     let log_data = format_number(data);
 
     // 组合日志
-    let formatted_log = format_log(&collect_id, id, &timestamp, &log_data);
+    let formatted_log = format_log(
+        &collect_id,
+        collect_id_length,
+        id,
+        id_length,
+        &timestamp,
+        &log_data,
+    );
 
     // 输出日志
     info!("{}", formatted_log);
@@ -145,6 +163,8 @@ pub fn log_as_date(id: &str, data: NaiveDate) -> Result<()> {
 
     // 获取配置
     let collect_id = get_collect_id()?;
+    let collect_id_length = get_collect_id_length()?;
+    let id_length = get_id_length(id)?;
 
     // 生成时间戳
     let timestamp = generate_timestamp();
@@ -153,7 +173,14 @@ pub fn log_as_date(id: &str, data: NaiveDate) -> Result<()> {
     let log_data = format_date(data);
 
     // 组合日志
-    let formatted_log = format_log(&collect_id, id, &timestamp, &log_data);
+    let formatted_log = format_log(
+        &collect_id,
+        collect_id_length,
+        id,
+        id_length,
+        &timestamp,
+        &log_data,
+    );
 
     // 输出日志
     info!("{}", formatted_log);
@@ -178,6 +205,8 @@ pub fn log_as_datetime(id: &str, data: NaiveDateTime) -> Result<()> {
 
     // 获取配置
     let collect_id = get_collect_id()?;
+    let collect_id_length = get_collect_id_length()?;
+    let id_length = get_id_length(id)?;
 
     // 生成时间戳
     let timestamp = generate_timestamp();
@@ -186,7 +215,14 @@ pub fn log_as_datetime(id: &str, data: NaiveDateTime) -> Result<()> {
     let log_data = format_datetime(data);
 
     // 组合日志
-    let formatted_log = format_log(&collect_id, id, &timestamp, &log_data);
+    let formatted_log = format_log(
+        &collect_id,
+        collect_id_length,
+        id,
+        id_length,
+        &timestamp,
+        &log_data,
+    );
 
     // 输出日志
     info!("{}", formatted_log);
@@ -239,11 +275,11 @@ fn log_error(message: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{init_log_config, LogConfig, TargetConfig, IdConfig};
+    use crate::config::{init_log_config, IdConfig, LogConfig, TargetConfig};
     use serde::{Deserialize, Serialize};
+    use serial_test::serial;
     use std::fs;
     use tempfile::NamedTempFile;
-    use serial_test::serial;
 
     /// 初始化测试配置
     fn setup_test_config() -> NamedTempFile {
@@ -311,8 +347,14 @@ mod tests {
     #[test]
     fn test_serialize_to_json_complex() {
         let data = vec![
-            TestData { name: "a".to_string(), value: 1 },
-            TestData { name: "b".to_string(), value: 2 },
+            TestData {
+                name: "a".to_string(),
+                value: 1,
+            },
+            TestData {
+                name: "b".to_string(),
+                value: 2,
+            },
         ];
         let result = serialize_to_json(&data);
         assert!(result.is_ok());
@@ -491,7 +533,10 @@ mod tests {
         }
 
         let data = NestedData {
-            inner: TestData { name: "inner".to_string(), value: 50 },
+            inner: TestData {
+                name: "inner".to_string(),
+                value: 50,
+            },
             count: 10,
         };
         let result = log_as_json("user_event", &data);

@@ -1,4 +1,3 @@
-
 use anyhow::{anyhow, Result};
 use once_cell::sync::OnceCell;
 use serde::Deserialize;
@@ -35,13 +34,13 @@ impl LogConfig {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let content = std::fs::read_to_string(path.as_ref())
             .map_err(|e| anyhow!("读取配置文件失败: {}", e))?;
-        
-        let config: LogConfig = serde_json::from_str(&content)
-            .map_err(|e| anyhow!("解析配置文件失败: {}", e))?;
-        
+
+        let config: LogConfig =
+            serde_json::from_str(&content).map_err(|e| anyhow!("解析配置文件失败: {}", e))?;
+
         // 验证配置
         config.validate()?;
-        
+
         Ok(config)
     }
 
@@ -69,7 +68,10 @@ impl LogConfig {
 
     /// 获取指定名称的ID配置
     pub fn get_id_config(&self, name: &str) -> Option<&IdConfig> {
-        self.targets.iter().find(|t| t.id.name == name).map(|t| &t.id)
+        self.targets
+            .iter()
+            .find(|t| t.id.name == name)
+            .map(|t| &t.id)
     }
 }
 
@@ -86,11 +88,11 @@ static GLOBAL_CONFIG: OnceCell<LogConfig> = OnceCell::new();
 /// - `Result<()>`: 成功时返回`Ok(())`，失败时返回错误信息
 pub fn init_log_config(config_path: &Path) -> Result<()> {
     let config = LogConfig::from_file(config_path)?;
-    
+
     GLOBAL_CONFIG
         .set(config)
         .map_err(|_| anyhow!("日志配置已经初始化，不能重复初始化"))?;
-    
+
     Ok(())
 }
 
@@ -113,11 +115,11 @@ pub fn get_config() -> Result<&'static LogConfig> {
 /// - `Result<()>`: 成功时返回`Ok(())`，失败时返回错误信息
 pub fn validate_id(id: &str) -> Result<()> {
     let config = get_config()?;
-    
+
     let id_config = config
         .get_id_config(id)
         .ok_or_else(|| anyhow!("ID '{}' 在配置中不存在", id))?;
-    
+
     if id.len() != id_config.length {
         return Err(anyhow!(
             "ID '{}' 长度不匹配: 期望 {}, 实际 {}",
@@ -126,7 +128,7 @@ pub fn validate_id(id: &str) -> Result<()> {
             id.len()
         ));
     }
-    
+
     Ok(())
 }
 
@@ -139,12 +141,38 @@ pub fn get_collect_id() -> Result<String> {
     Ok(config.collect_id.clone())
 }
 
+/// 获取 collect_id_length
+///
+/// # 返回
+/// - `Result<usize>`: 成功时返回 collect_id_length，失败时返回错误信息
+pub fn get_collect_id_length() -> Result<usize> {
+    let config = get_config()?;
+    Ok(config.collect_id_length)
+}
+
+/// 获取指定ID的长度
+///
+/// # 参数
+/// - `id`: 目标标识名称
+///
+/// # 返回
+/// - `Result<usize>`: 成功时返回ID的长度，失败时返回错误信息
+pub fn get_id_length(id: &str) -> Result<usize> {
+    let config = get_config()?;
+
+    let id_config = config
+        .get_id_config(id)
+        .ok_or_else(|| anyhow!("ID '{}' 在配置中不存在", id))?;
+
+    Ok(id_config.length)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::fs;
     use tempfile::NamedTempFile;
-    use serial_test::serial;
 
     #[test]
     #[serial]
@@ -189,7 +217,10 @@ mod tests {
 
         let result = LogConfig::from_file(path);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("collect_id 长度不匹配"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("collect_id 长度不匹配"));
     }
 
     #[test]
@@ -229,14 +260,12 @@ mod tests {
         let config = LogConfig {
             collect_id: "RESUME-AGENT".to_string(),
             collect_id_length: 12,
-            targets: vec![
-                TargetConfig {
-                    id: IdConfig {
-                        name: "user_login".to_string(),
-                        length: 10,
-                    },
+            targets: vec![TargetConfig {
+                id: IdConfig {
+                    name: "user_login".to_string(),
+                    length: 10,
                 },
-            ],
+            }],
         };
 
         let id_config = config.get_id_config("user_login").unwrap();
@@ -244,5 +273,81 @@ mod tests {
         assert_eq!(id_config.length, 10);
 
         assert!(config.get_id_config("not_exist").is_none());
+    }
+
+    #[test]
+    #[serial]
+    fn test_get_collect_id_length() {
+        let config_content = r#"{
+            "collect_id": "RESUME-AGENT",
+            "collect_id_length": 12,
+            "targets": [
+                {
+                    "id": {
+                        "name": "user_login",
+                        "length": 10
+                    }
+                }
+            ]
+        }"#;
+
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path();
+        fs::write(path, config_content).unwrap();
+
+        init_log_config(path).unwrap();
+        let length = get_collect_id_length().unwrap();
+        assert_eq!(length, 12);
+    }
+
+    #[test]
+    #[serial]
+    fn test_get_id_length() {
+        let config_content = r#"{
+            "collect_id": "RESUME-AGENT",
+            "collect_id_length": 12,
+            "targets": [
+                {
+                    "id": {
+                        "name": "user_login",
+                        "length": 10
+                    }
+                }
+            ]
+        }"#;
+
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path();
+        fs::write(path, config_content).unwrap();
+
+        init_log_config(path).unwrap();
+        let length = get_id_length("user_login").unwrap();
+        assert_eq!(length, 10);
+    }
+
+    #[test]
+    #[serial]
+    fn test_get_id_length_not_exist() {
+        let config_content = r#"{
+            "collect_id": "RESUME-AGENT",
+            "collect_id_length": 12,
+            "targets": [
+                {
+                    "id": {
+                        "name": "user_login",
+                        "length": 10
+                    }
+                }
+            ]
+        }"#;
+
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path();
+        fs::write(path, config_content).unwrap();
+
+        init_log_config(path).unwrap();
+        let result = get_id_length("not_exist");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("在配置中不存在"));
     }
 }

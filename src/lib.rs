@@ -1,4 +1,3 @@
-
 use anyhow::{anyhow, Result};
 use chrono::{NaiveDate, NaiveDateTime};
 use log::LevelFilter;
@@ -20,7 +19,7 @@ pub mod output;
 
 // 重新导出公共API
 pub use config::init_log_config;
-pub use output::{log_as_date, log_as_datetime, log_as_number, log_as_string, log_as_json};
+pub use output::{log_as_date, log_as_datetime, log_as_json, log_as_number, log_as_string};
 
 /// 初始化日志系统
 ///
@@ -65,18 +64,22 @@ pub fn init_log_with_console(
         .build(log_path)
         .map_err(|e| anyhow!("创建日志文件失败: {}", e))?;
 
-    let mut config_builder = LogConfig::builder()
-        .appender(Appender::builder().build("logfile", Box::new(logfile)));
+    let mut config_builder =
+        LogConfig::builder().appender(Appender::builder().build("logfile", Box::new(logfile)));
 
     if enable_console {
         let console = ConsoleAppender::builder()
             .encoder(Box::new(PatternEncoder::new("{d} {l} {t} - {m}{n}")))
             .build();
-        config_builder = config_builder.appender(Appender::builder().build("console", Box::new(console)));
+        config_builder =
+            config_builder.appender(Appender::builder().build("console", Box::new(console)));
     }
 
     let root_builder = if enable_console {
-        Root::builder().appender("logfile").appender("console").build(level)
+        Root::builder()
+            .appender("logfile")
+            .appender("console")
+            .build(level)
     } else {
         Root::builder().appender("logfile").build(level)
     };
